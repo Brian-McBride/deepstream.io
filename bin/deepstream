@@ -10,6 +10,7 @@ const start = require('./deepstream-start')
 const info = require('./deepstream-info')
 const hash = require('./deepstream-hash')
 const service = require('./deepstream-service')
+const daemon = require('./deepstream-daemon')
 
 const program = new Command('deepstream')
 program
@@ -21,6 +22,7 @@ install(program)
 info(program)
 hash(program)
 service(program)
+daemon(program)
 
 program.parse(process.argv)
 

@@ -3,7 +3,6 @@
 const colors = require('colors')
 const os = require('os')
 const path = require('path')
-const child_process = require('child_process')
 
 module.exports = function (program) {
   program

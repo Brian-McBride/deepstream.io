@@ -10,8 +10,21 @@ const utils = require('../utils/utils')
 const configInitialiser = require('./config-initialiser')
 const fileUtils = require('./file-utils')
 
-const SUPPORTED_EXTENSIONS = ['.yml', '.yaml', '.json', '.js']; path.join('.', 'conf', 'config')
-const DEFAULT_CONFIG_DIRS = [path.join('.', 'conf', 'config'), '/etc/deepstream/config', '/usr/local/etc/deepstream/config']
+const SUPPORTED_EXTENSIONS = ['.yml', '.yaml', '.json', '.js']
+const DEFAULT_CONFIG_DIRS = [
+  path.join('.', 'conf', 'config'), path.join('..', 'conf', 'config'),
+  '/etc/deepstream/config', '/usr/local/etc/deepstream/config',
+  '/usr/local/etc/deepstream/conf/config'
+]
+
+try {
+  require('nexeres') // eslint-disable-line
+  DEFAULT_CONFIG_DIRS.push(path.join(process.argv[0], '..', 'conf', 'config'))
+  DEFAULT_CONFIG_DIRS.push(path.join(process.argv[0], '..', '..', 'conf', 'config'))
+} catch (e) {
+  DEFAULT_CONFIG_DIRS.push(path.join(process.argv[1], '..', 'conf', 'config'))
+  DEFAULT_CONFIG_DIRS.push(path.join(process.argv[1], '..', '..', 'conf', 'config'))
+}
 
 /**
  * Reads and parse a general configuration file content.
@@ -161,8 +174,31 @@ function extendConfig (config, argv) {
   for (key in defaultOptions.get()) {
     cliArgs[key] = argv[key]
   }
+  if (argv.port) {
+    overrideEndpointOption('port', argv.port, 'websocket', config)
+  }
+  if (argv.host) {
+    overrideEndpointOption('host', argv.host, 'websocket', config)
+  }
+  if (argv.httpPort) {
+    overrideEndpointOption('port', argv.httpPort, 'http', config)
+  }
+  if (argv.httpHost) {
+    overrideEndpointOption('host', argv.httpHost, 'http', config)
+  }
 
   return utils.merge({ plugins: {} }, defaultOptions.get(), config, cliArgs)
+}
+
+function overrideEndpointOption (key, value, endpoint, config) {
+  try {
+    config.connectionEndpoints[endpoint].options[key] = value
+  } catch (exception) {
+    throw new Error(
+      `${key} could not be set: ${endpoint} connection endpoint not found`,
+      exception.message
+    )
+  }
 }
 
 /**
@@ -222,6 +258,6 @@ function getDefaultConfigPath () {
 function replaceEnvironmentVariables (fileContent) {
   const environmentVariable = new RegExp(/\${([^}]+)}/g)
   // eslint-disable-next-line
-  fileContent = fileContent.replace(environmentVariable, (a, b) => process.env[b] || b)
+  fileContent = fileContent.replace(environmentVariable, (a, b) => process.env[b] || '')
   return fileContent
 }

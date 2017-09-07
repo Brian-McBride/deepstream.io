@@ -1,4 +1,4 @@
-/* global jasmine, spyOn, describe, it, expect, beforeEach, afterEach */
+/* global jasmine, spyOn, describe, it, expect, beforeAll, beforeEach, afterEach */
 'use strict'
 
 const defaultConfig = require('../../src/default-options')
@@ -95,29 +95,13 @@ describe('config-initialiser', () => {
 
       expect(errored).toBe(true)
     })
-
-    it('translates message connectors', () => {
-      global.deepstreamLibDir = '/foobar'
-      const config = defaultConfig.get()
-      let errored = false
-      config.plugins = {
-        message: {
-          name: 'blablub'
-        }
-      }
-
-      try {
-        configInitialiser.initialise(config)
-      } catch (e) {
-        errored = true
-        expect(e.toString()).toContain(path.join('/foobar', 'deepstream.io-msg-blablub'))
-      }
-
-      expect(errored).toBe(true)
-    })
   })
 
   describe('creates the right authentication handler', () => {
+    beforeAll(() => {
+      global.deepstreamLibDir = './test/test-plugins'
+    })
+
     it('works for authtype: none', () => {
       const config = defaultConfig.get()
 
@@ -167,6 +151,33 @@ describe('config-initialiser', () => {
       expect(() => {
         configInitialiser.initialise(config)
       }).toThrowError('No authentication type specified')
+    })
+
+    it('allows passing a custom authentication handler', () => {
+      const config = defaultConfig.get()
+
+      config.auth = {
+        path: '../mocks/auth-handler-mock',
+        options: {
+          hello: 'there'
+        }
+      }
+
+      configInitialiser.initialise(config)
+      expect(config.authenticationHandler.isReady).toBe(true)
+      expect(config.authenticationHandler.options).toEqual({ hello: 'there' })
+    })
+
+    it('tries to find a custom authentication handler from name', () => {
+      const config = defaultConfig.get()
+
+      config.auth = {
+        name: 'my-custom-auth-handler',
+      }
+
+      expect(() => {
+        configInitialiser.initialise(config)
+      }).toThrowError(/Cannot find module/)
     })
 
     it('fails for unknown auth types', () => {
@@ -225,6 +236,33 @@ describe('config-initialiser', () => {
       expect(() => {
         configInitialiser.initialise(config)
       }).toThrowError('Unknown permission type does-not-exist')
+    })
+
+    it('allows passing a custom permission handler', () => {
+      const config = defaultConfig.get()
+
+      config.auth = {
+        path: '../mocks/perm-handler-mock',
+        options: {
+          hello: 'there'
+        }
+      }
+
+      configInitialiser.initialise(config)
+      expect(config.authenticationHandler.isReady).toBe(true)
+      expect(config.authenticationHandler.options).toEqual({ hello: 'there' })
+    })
+
+    it('tries to find a custom authentication handler from name', () => {
+      const config = defaultConfig.get()
+
+      config.auth = {
+        name: 'my-custom-perm-handler',
+      }
+
+      expect(() => {
+        configInitialiser.initialise(config)
+      }).toThrowError(/Cannot find module/)
     })
 
     it('fails for missing permission configs', () => {

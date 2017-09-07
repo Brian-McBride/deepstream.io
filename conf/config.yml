@@ -1,6 +1,4 @@
 # General
-# Each server within a cluster needs a unique name. Set to UUID to have deepstream autogenerate a unique id
-serverName: UUID
 # Show the deepstream logo on startup (highly recommended)
 showLogo: true
 # Log messages with this level and above. Valid levels are DEBUG, INFO, WARN, ERROR, OFF
@@ -18,7 +16,7 @@ sslCert: null
 sslCa: null
 
 # Connection Endpoint Configuration
-# currently at most one may be specified
+# to disable, replace configuration with null eg. `http: null`
 connectionEndpoints:
   websocket:
     name: uws
@@ -45,6 +43,37 @@ connectionEndpoints:
         logInvalidAuthData: false
         # maximum allowed size of an individual message in bytes
         maxMessageSize: 1048576
+
+  http:
+    name: http
+    options:
+      # port for the http server
+      port: 8080
+      # host for the http server
+      host: 0.0.0.0
+      # allow 'authData' parameter in POST requests, if disabled only token and OPEN auth is
+      # possible
+      allowAuthData: true
+      # enable the authentication endpoint for requesting tokens/userData.
+      # note: a custom authentication handler is required for token generation
+      enableAuthEndpoint: false
+      # path for authentication requests
+      authPath: /auth
+      # path for POST requests
+      postPath: /
+      # path for GET requests
+      getPath: /
+      # url path for http health-checks, GET requests to this path will return 200 if deepstream is alive
+      healthCheckPath: /health-check
+
+      # -- CORS --
+      # if disabled, only requests with an 'Origin' header matching one specified under 'origins'
+      # below will be permitted and the 'Access-Control-Allow-Credentials' response header will be
+      # enabled
+      allowAllOrigins: true
+      # a list of allowed origins
+      origins:
+        - 'https://example.com'
 
 # Logger Configuration
 # logger:
@@ -75,12 +104,6 @@ connectionEndpoints:
 
 # Plugin Configuration
 plugins:
-  # message:
-  #   name: redis
-  #   options:
-  #     host: localhost
-  #     port: 6379
-  #
   # cache:
   #   name: memcached
   #   options:
@@ -145,12 +168,6 @@ cacheRetrievalTimeout: 1000
 storageRetrievalTimeout: 2000
 # Plugin startup timeout – deepstream init will fail if any plugins fail to emit a 'done' event within this timeout
 dependencyInitialisationTimeout: 2000
-# The interval at which a status message is sent by each node within a cluster
-clusterKeepAliveInterval: 5000
-# The interval at which all nodes within a cluster registry are checked for timeouts
-clusterActiveCheckInterval: 1000
-# The longest duration since the last status message was received until the remote node is declared inactive
-clusterNodeInactiveTimeout: 6000
 # The amount of time to wait for a provider to acknowledge or reject a listen request
 listenResponseTimeout: 500
 # The amount of time a lock can be reserved for before it is force released

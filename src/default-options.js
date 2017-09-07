@@ -58,29 +58,31 @@ exports.get = function () {
            */
           unauthenticatedClientTimeout: 180000,
           maxAuthAttempts: 3,
-          logInvalidAuthData: true,
+          logInvalidAuthData: false,
+          perMessageDeflate: false,
           maxMessageSize: 1048576
+        }
+      },
+      http: {
+        name: 'http',
+        options: {
+          port: 8080,
+          host: '0.0.0.0',
+          allowAuthData: true,
+          enableAuthEndpoint: true,
+          authPath: '/auth',
+          postPath: '/',
+          getPath: '/',
+          healthCheckPath: '/health-check',
+          allowAllOrigins: true,
+          origins: []
         }
       }
     },
 
     /*
-     * Redundant connection config (maintained for overriding by environment/CLI)
-     */
-    port: null,
-    host: null,
-    urlPath: null,
-    healthCheckPath: null,
-    heartbeatInterval: null,
-    unauthenticatedClientTimeout: null,
-    maxAuthAttempts: null,
-    logInvalidAuthData: null,
-    maxMessageSize: null,
-
-    /*
      * Default Plugins
      */
-    messageConnector: require('./default-plugins/noop-message-connector'),
     cache: require('./default-plugins/local-cache'),
     storage: require('./default-plugins/noop-storage'),
 

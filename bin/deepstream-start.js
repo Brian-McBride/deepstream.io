@@ -3,8 +3,6 @@
 const colors = require('colors')
 const os = require('os')
 const path = require('path')
-const child_process = require('child_process')
-const pidHelper = require('./pid-helper')
 
 module.exports = function (program) {
   program
@@ -13,11 +11,11 @@ module.exports = function (program) {
 
     .option('-c, --config [file]', 'configuration file, parent directory will be used as prefix for other config files')
     .option('-l, --lib-dir [directory]', 'path where to lookup for plugins like connectors and logger')
-    .option('-d, --detach', 'detach the deepstream server process')
 
-    .option('--server-name <name>', 'Each server within a cluster needs a unique name')
-    .option('--host <host>', 'host for the HTTP/websocket server')
-    .option('--port <port>', 'port for the HTTP/websocket server', parseInteger.bind(null, '--port'))
+    .option('--host <host>', 'host for the websocket server')
+    .option('--port <port>', 'port for the websocket server', parseInteger.bind(null, '--port'))
+    .option('--http-host <host>', 'host for the HTTP server')
+    .option('--http-port <port>', 'port for the HTTP server', parseInteger.bind(null, '--http-port'))
     .option('--disable-auth', 'Force deepstream to use "none" auth type')
     .option('--disable-permissions', 'Force deepstream to use "none" permissions')
     .option('--log-level <level>', 'Log messages with this level and above', parseLogLevel)
@@ -28,70 +26,18 @@ module.exports = function (program) {
 function action () {
   global.deepstreamCLI = this
 
-  if (this.detach) {
-    // --detach is not supported for windows
-    if (os.platform() === 'win32') {
-      console.error('detached mode not supported on windows')
-      process.exit(1)
-    }
-    // proxy arguments from commander to the spawing process
-    const args = []
-    if (this.config != null) {
-      args.push('--config')
-      args.push(this.config)
-    }
-    if (this.libDir != null) {
-      args.push('--lib-dir')
-      args.push(this.libDir)
-    }
-    // TODO: need to pass other options as well, which are accessable directly as properties of this
-    //       but need to transform camelCase back to kebabCase, like disableAuth
-
-    // ensure there is no pid file with a running process
-    pidHelper.ensureNotRunning((err) => {
-      if (err) {
-        return pidHelper.exit(err)
-      }
-      const child = child_process.spawn(path.join(__dirname, 'deepstream'), ['start'].concat(args), {
-        detached: true,
-        stdio: ['ignore']
+  const Deepstream = require('../src/deepstream.io.js')
+  try {
+    const ds = new Deepstream(null)
+    ds.start()
+    process
+      .removeAllListeners('SIGINT').on('SIGINT', () => {
+        ds.on('stopped', () => process.exit(0))
+        ds.stop()
       })
-      const WAIT_FOR_ERRORS = 3000
-      // register handler if the child process will fail within WAIT_FOR_ERRORS period
-      child.on('close', detachErrorHandler)
-      child.on('exit', detachErrorHandler)
-      child.unref()
-      // wait, maybe there is an error during startup
-      setTimeout(() => {
-        console.log(`process was detached with pid ${child.pid}`)
-        process.exit(0)
-      }, WAIT_FOR_ERRORS)
-    })
-  } else {
-    // non-detach case
-    const Deepstream = require('../src/deepstream.io.js')
-    try {
-      process.on('uncaughtException', pidHelper.exit)
-      const ds = new Deepstream(null)
-      ds.on('started', () => {
-        pidHelper.save(process.pid)
-      })
-      ds.start()
-      process
-        .removeAllListeners('SIGTERM').on('SIGTERM', pidHelper.exit)
-        .removeAllListeners('SIGINT').on('SIGINT', () => {
-          try {
-            ds.stop()
-            ds.on('stopped', pidHelper.exit)
-          } catch (err) {
-            pidHelper.exit(err)
-          }
-        })
-    } catch (err) {
-      console.error(err.toString())
-      console.trace()
-      process.exit(1)
-    }
+  } catch (err) {
+    console.error(err.toString())
+    process.exit(1)
   }
 }
 

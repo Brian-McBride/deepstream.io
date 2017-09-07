@@ -5,7 +5,8 @@ const fs = require('fs')
 const utils = require('../utils/utils')
 const C = require('../constants/constants')
 const fileUtils = require('./file-utils')
-const UWSConnectionEndpoint = require('../message/uws-connection-endpoint')
+const UWSConnectionEndpoint = require('../message/uws/connection-endpoint')
+const HTTPConnectionEndpoint = require('../message/http/connection-endpoint')
 
 const LOG_LEVEL_KEYS = Object.keys(C.LOG_LEVEL)
 
@@ -24,7 +25,6 @@ exports.initialise = function (config) {
 
   // The default plugins required by deepstream to run
   config.pluginTypes = [
-    'messageConnector',
     'storage',
     'cache',
     'authenticationHandler',
@@ -126,11 +126,10 @@ function handleLogger (config) {
 
 /**
  * Handle the plugins property in the config object the connectors.
- * Allowed types: {message|cache|storage}
+ * Allowed types: {cache|storage}
  * Plugins can be passed either as a __path__ property or as a __name__ property with
  * a naming convetion: *{cache: {name: 'redis'}}* will be resolved to the
  * npm module *deepstream.io-cache-redis*
- * Exception: *message* will be resolved to *msg*
  * Options to the constructor of the plugin can be passed as *options* object.
  *
  * CLI arguments will be considered.
@@ -147,21 +146,16 @@ function handlePlugins (config) {
   // mapping between the root properties which contains the plugin instance
   // and the plugin configuration objects
   const connectorMap = {
-    messageConnector: 'message',
     cache: 'cache',
     storage: 'storage'
   }
   // mapping between the plugin configuration properties and the npm module
   // name resolution
   const typeMap = {
-    message: 'msg',
     cache: 'cache',
     storage: 'storage'
   }
-  const plugins = Object.assign({}, config.plugins, {
-    messageConnector: config.plugins.message
-  })
-  delete plugins.message
+  const plugins = Object.assign({}, config.plugins)
 
   for (const key in plugins) {
     const plugin = plugins[key]
@@ -201,9 +195,6 @@ function handleConnectionEndpoints (config) {
   if (!config.connectionEndpoints || Object.keys(config.connectionEndpoints).length === 0) {
     throw new Error('No connection endpoints configured')
   }
-  if (Object.keys(config.connectionEndpoints).length > 1) {
-    throw new Error('Currently only one connection endpoint may be configured.')
-  }
   const connectionEndpoints = []
   for (const connectionType in config.connectionEndpoints) {
     const plugin = config.connectionEndpoints[connectionType]
@@ -213,6 +204,8 @@ function handleConnectionEndpoints (config) {
     let PluginConstructor
     if (plugin.name === 'uws') {
       PluginConstructor = UWSConnectionEndpoint
+    } else if (plugin.name === 'http') {
+      PluginConstructor = HTTPConnectionEndpoint
     } else {
       PluginConstructor = resolvePluginClass(plugin, 'connection')
     }
@@ -281,7 +274,16 @@ function handleAuthStrategy (config) {
     config.auth.options = {}
   }
 
-  if (!authStrategies[config.auth.type] && !config.auth.path) {
+  if (config.auth.name || config.auth.path) {
+    const AuthHandler = resolvePluginClass(config.auth, 'authentication')
+    if (!AuthHandler) {
+      throw new Error(`unable to resolve authentication handler ${config.auth.name || config.auth.path}`)
+    }
+    config.authenticationHandler = new AuthHandler(config.auth.options, config.logger)
+    return
+  }
+
+  if (!authStrategies[config.auth.type]) {
     throw new Error(`Unknown authentication type ${config.auth.type}`)
   }
 
@@ -318,7 +320,16 @@ function handlePermissionStrategy (config) {
     config.permission.options = {}
   }
 
-  if (!permissionStrategies[config.permission.type] && !config.permission.path) {
+  if (config.permission.name || config.permission.path) {
+    const PermHandler = resolvePluginClass(config.permission, 'permission')
+    if (!PermHandler) {
+      throw new Error(`unable to resolve plugin ${config.permission.name || config.permission.path}`)
+    }
+    config.permissionHandler = new PermHandler(config.permission.options, config.logger)
+    return
+  }
+
+  if (!permissionStrategies[config.permission.type]) {
     throw new Error(`Unknown permission type ${config.permission.type}`)
   }
 

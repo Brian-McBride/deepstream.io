@@ -15,11 +15,11 @@ const EventEmitter = require('events').EventEmitter
  *
  * @constructor
  */
-const DependencyInitialiser = function (deepstream, options, name) {
+const DependencyInitialiser = function (deepstream, options, dependency, name) {
   this.isReady = false
 
   this._options = options
-  this._dependency = options[name]
+  this._dependency = dependency
   this._name = name
   this._timeout = null
 
@@ -77,6 +77,7 @@ DependencyInitialiser.prototype._onReady = function () {
   this._dependency.type = this._dependency.description || this._dependency.type
   const dependencyType = this._dependency.type ? `: ${this._dependency.type}` : ': no dependency description provided'
   this._options.logger.log(C.LOG_LEVEL.INFO, C.EVENT.INFO, `${this._name} ready${dependencyType}`)
+
   process.nextTick(this._emitReady.bind(this))
 }
 
